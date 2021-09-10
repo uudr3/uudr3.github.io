@@ -1,0 +1,52 @@
+<html>
+<body>
+    <div id="dplayer"></div>
+</body>
+<script src="DPlayer.min.js"></script>
+
+<script>
+    // https://dplayer.js.org/guide.html#options
+    let dp_info = {
+        'theme': '#FADFA3',
+        'speed': 1,
+        'autoplay': true,
+        'volume': 1,
+        'loop': false,
+        'video_url': '',
+        'fullscreen': false,
+    }
+
+    if(location.href.indexOf('?') != -1) {
+        let ary = location.href.split('?')[1].split('&');
+		for (i = 0; i < ary.length; i++)
+            dp_info[ary[i].split('=')[0]] = ary[i].split('=')[1]
+    }
+
+    const dp = new DPlayer({
+        container: document.getElementById('dplayer'),
+        theme: dp_info.theme,
+        autoplay: dp_info.autoplay,
+        volume: dp_info.volume,
+        loop: dp_info.loop,
+        video: {
+            url: dp_info.video_url,
+        },
+    });
+
+    function play() {
+        dp.speed(dp_info.speed)
+        dp.play()
+        if(JSON.parse(dp_info.fullscreen))
+            dp.fullScreen.request('browser')
+    }
+
+    document.addEventListener("paste", e => {
+        dp.switchVideo({ url: e.clipboardData.getData("text") })
+        play()
+    });
+
+    // WTF play BuG?
+    if(JSON.parse(dp_info.autoplay) && (dp_info.video_url.length != 0))
+        play()
+</script>
+</html>
