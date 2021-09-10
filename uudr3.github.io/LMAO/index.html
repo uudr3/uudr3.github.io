@@ -1,0 +1,177 @@
+<meta charset="utf-8">
+
+<body onload=main()>
+    <div id="odiv_unwatched" style="display: none;">
+        <c style="font-size: 24;">まだ見ていない (クリック出来ます)</c><br>
+        <div id="div_unwatched"></div>
+    </div>
+    <br><br>
+    <div id="odiv_watched" style="display: none;">
+        <c style="font-size: 24;">見た (クリック出来ます)</c><br>
+        <div id="div_watched"></div>
+    </div>
+</body>
+<script>
+    'use strict';
+    let storageOP = (op, target, data) => {
+        switch (op) {
+            case 'set':
+                // typeof(data): Array
+                data = JSON.stringify(data);
+                localStorage.setItem(target, data);
+                break;
+            case 'get':
+                if (!localStorage.hasOwnProperty(target))
+                    return [];
+                return JSON.parse(localStorage.getItem(target));
+            case 'push':
+                // it wont push existed items.
+                let tmp = storageOP('get', target);
+                if (!tmp.includes(data)) {
+                    tmp.push(data);
+                    storageOP('set', target, tmp);
+                }
+                break;
+            case 'clear':
+                storageOP('set', target, []);
+                break;
+            default:
+                break;
+        }
+    }
+
+    // storage names : ['all_memes', 'watched']
+    let memesOP = (op, data) => {
+        let tmp = [];
+        let chooseOne = arr => {
+            tmp = arr[Math.floor(Math.random() * arr.length)];
+            return tmp;
+        }
+
+        switch (op) {
+            case 'setAll':
+                storageOP('set', 'all_memes', data);
+                break;
+            case 'setWatched':
+                storageOP('push', 'watched', data);
+                break;
+
+            case 'listAll':
+                return storageOP('get', 'all_memes');
+            case 'listWatched':
+                return storageOP('get', 'watched');
+            case 'listUnwatched':
+                let tmpA, tmpW = [];
+                let diff_of_arrays = (toPOP, norm) => {
+                    // All of objects: Call by ref
+                    if (norm.length == 0)
+                        return toPOP;
+                    return toPOP.filter(tmp =>
+                        !norm.includes(tmp)
+                    );
+                }
+                tmpA = memesOP('listAll');
+                tmpW = memesOP('listWatched');
+                return diff_of_arrays(tmpA, tmpW);
+
+            case 'getRandomOne':
+                tmp = memesOP('listAll');
+                tmp = chooseOne(tmp);
+                memesOP('setWatched', tmp);
+                return tmp;
+            case 'getNewOne':
+                tmp = memesOP('listUnwatched');
+                if (tmp.length == 0) {
+                    alert('You’ve watched all the memes.\nNow cleaning history and redirecting...');
+                    console.log('You’ve watched all the memes.\nNow cleaning history and redirecting...');
+                    storageOP('clear', 'watched');
+                    return memesOP('getNewOne');
+                }
+                else {
+                    tmp = chooseOne(tmp);
+                    memesOP('setWatched', tmp);
+                    return tmp;
+                }
+
+            case 'goto':
+                memesOP('setWatched', data);
+                location.href = data;
+                break;
+
+            default:
+                break;
+        }
+    }
+
+
+    // async function main() {
+    let main = async () => {
+        await fetch('./memes.json')
+            .then(res => res.json())
+            .then(res => {
+                let fetch_memes = [];
+                Object.keys(res).forEach(key =>
+                    res[key].names.forEach(element =>
+                        fetch_memes.push(res[key].prefix + element)
+                    )
+                )
+                memesOP('setAll', fetch_memes)
+            })
+            .catch(err => {
+                alert(`Error occured! ${err}`)
+            });
+
+
+
+        let memes = memesOP('listAll')
+        console.log(`全部 ${memes.length} つ可能ですよ！`);
+        console.log(memes);
+
+        if (location.href.indexOf('?') == -1)
+            location.href = memesOP('getNewOne');
+        else {
+            let arr2DoM = (DoMobj, arr) => {
+                let create_a = link => {
+                    let a = document.createElement("c");
+                    a.setAttribute("onclick", `memesOP('goto', "${link}");`);
+                    // a.setAttribute("style", "font-size: 18;cursor: pointer;");
+                    a.innerText = link
+                    return a;
+                }
+                arr.forEach(element => {
+                    DoMobj.appendChild(create_a(element))
+                    DoMobj.appendChild(document.createElement("br"))
+                });
+            }
+            let enableDoM = DoM => {
+                DoM.style.display = "inline";
+            }
+
+            switch (location.href.split('?')[1]) {
+                case 'list-watched':
+                    arr2DoM(document.getElementById("div_watched"), memesOP('listWatched'));
+                    enableDoM(document.getElementById("odiv_watched"));
+                    break;
+                case 'list-unwatched':
+                    arr2DoM(document.getElementById("div_unwatched"), memesOP('listUnwatched'));
+                    enableDoM(document.getElementById("odiv_unwatched"));
+                    break;
+                case 'list':
+                case 'list-all':
+                default:
+                    arr2DoM(document.getElementById("div_watched"), memesOP('listWatched'));
+                    enableDoM(document.getElementById("odiv_watched"));
+                    arr2DoM(document.getElementById("div_unwatched"), memesOP('listUnwatched'));
+                    enableDoM(document.getElementById("odiv_unwatched"));
+                    break;
+            }
+
+        }
+    }
+</script>
+<style>
+    c {
+        font-size: 18;
+        cursor: pointer;
+    }
+</style>
